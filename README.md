@@ -12,7 +12,7 @@ The data comes from an SQLite database and was processed using SQL and Python.
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.13
 - Packages: pandas, matplotlib, pathlib
 
 ## Author
