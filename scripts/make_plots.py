@@ -1,13 +1,40 @@
-
 import argparse
 from pathlib import Path
+from typing import Optional, Sequence
+
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def ensure_dir(p: Path):
+
+def ensure_dir(p: Path) -> None:
+    """
+    Ensure that a directory exists.
+
+    Parameters
+    ----------
+    p : Path
+        Target directory path to create if it doesn't exist.
+    """
     p.mkdir(parents=True, exist_ok=True)
 
-def load_csv(path: Path, required_cols=None):
+
+def load_csv(path: Path, required_cols: Optional[Sequence[str]] = None) -> Optional[pd.DataFrame]:
+    """
+    Load a CSV file into a DataFrame with optional schema validation.
+
+    Parameters
+    ----------
+    path : Path
+        Path to the CSV file.
+    required_cols : Sequence[str], optional
+        A sequence of column names that must be present in the CSV.
+        If any are missing, a warning is printed.
+
+    Returns
+    -------
+    DataFrame | None
+        Loaded DataFrame or None if the file does not exist.
+    """
     if not path.exists():
         print(f"[WARN] Missing CSV: {path.name}")
         return None
@@ -18,8 +45,24 @@ def load_csv(path: Path, required_cols=None):
             print(f"[WARN] {path.name} missing columns: {missing}")
     return df
 
-def parse_month(df, col="month"):
-    if df is None or col not in df.columns: 
+
+def parse_month(df: Optional[pd.DataFrame], col: str = "month") -> Optional[pd.DataFrame]:
+    """
+    Parse a month-like column to datetime if present.
+
+    Parameters
+    ----------
+    df : DataFrame | None
+        Input DataFrame. If None, returns None.
+    col : str
+        Column name containing month values (e.g., 'YYYY-MM').
+
+    Returns
+    -------
+    DataFrame | None
+        DataFrame with the column parsed to datetime, or the input if parsing fails.
+    """
+    if df is None or col not in df.columns:
         return df
     try:
         df[col] = pd.to_datetime(df[col], format="%Y-%m")
@@ -30,8 +73,25 @@ def parse_month(df, col="month"):
             pass
     return df
 
-def plot_line(df, x, y, title, outpath: Path):
-    if df is None or df.empty: 
+
+def plot_line(df: Optional[pd.DataFrame], x: str, y: str, title: str, outpath: Path) -> None:
+    """
+    Render a simple line plot and save to disk.
+
+    Parameters
+    ----------
+    df : DataFrame | None
+        DataFrame containing the series to plot.
+    x : str
+        Column name for the X axis.
+    y : str
+        Column name for the Y axis.
+    title : str
+        Plot title.
+    outpath : Path
+        Destination path for the PNG output.
+    """
+    if df is None or df.empty:
         print(f"[SKIP] {title} - empty")
         return
     plt.figure()
@@ -45,8 +105,25 @@ def plot_line(df, x, y, title, outpath: Path):
     plt.close()
     print(f"[OK] Saved {outpath}")
 
-def plot_bar(df, x, y, title, outpath: Path):
-    if df is None or df.empty: 
+
+def plot_bar(df: Optional[pd.DataFrame], x: str, y: str, title: str, outpath: Path) -> None:
+    """
+    Render a simple bar chart and save to disk.
+
+    Parameters
+    ----------
+    df : DataFrame | None
+        DataFrame containing the series to plot.
+    x : str
+        Column name for the X axis.
+    y : str
+        Column name for the Y axis.
+    title : str
+        Plot title.
+    outpath : Path
+        Destination path for the PNG output.
+    """
+    if df is None or df.empty:
         print(f"[SKIP] {title} - empty")
         return
     plt.figure()
@@ -60,7 +137,33 @@ def plot_bar(df, x, y, title, outpath: Path):
     plt.close()
     print(f"[OK] Saved {outpath}")
 
-def stacked_bar_from_share(df, index_col, col_col, val_col, title, outpath: Path):
+
+def stacked_bar_from_share(
+    df: Optional[pd.DataFrame],
+    index_col: str,
+    col_col: str,
+    val_col: str,
+    title: str,
+    outpath: Path,
+) -> None:
+    """
+    Render a stacked bar chart from a long 'share' table and save to disk.
+
+    Parameters
+    ----------
+    df : DataFrame | None
+        Long-format table with index, category column and share/value column.
+    index_col : str
+        Column name to use as the index (e.g., 'month').
+    col_col : str
+        Column name that defines stacked categories (e.g., 'installments_count').
+    val_col : str
+        Column with values to stack (e.g., 'share_pct').
+    title : str
+        Plot title.
+    outpath : Path
+        Destination path for the PNG output.
+    """
     if df is None or df.empty:
         print(f"[SKIP] {title} - empty")
         return
@@ -84,14 +187,39 @@ def stacked_bar_from_share(df, index_col, col_col, val_col, title, outpath: Path
     plt.close()
     print(f"[OK] Saved {outpath}")
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--data-dir", default="outputs", help="Directory with CSVs")
-    ap.add_argument("--out-dir", default=None, help="Directory for plots (default: <data-dir>/plots)")
+
+def main() -> None:
+    """
+    CLI entry-point.
+
+    Arguments (CLI)
+    ---------------
+    --data-dir : str (default: "outputs")
+        Directory containing CSV inputs generated from SQL.
+    --out-dir : str (default: "<data-dir>/plots")
+        Output directory for rendered PNG plots.
+
+    Side Effects
+    ------------
+    Saves PNG files into the chosen output directory. Skips plots for missing/empty inputs.
+    """
+    ap = argparse.ArgumentParser(description="Generate charts for Viabill analysis from CSV outputs.")
+    ap.add_argument(
+        "--data-dir",
+        type=str,
+        default="outputs",
+        help='Directory with CSV files (default: "outputs").',
+    )
+    ap.add_argument(
+        "--out-dir",
+        type=str,
+        default=None,
+        help='Directory for plots (default: "<data-dir>/plots").',
+    )
     args = ap.parse_args()
 
-    data_dir = Path(args.data_dir)
-    out_dir = Path(args.out_dir) if args.out_dir else data_dir / "plots"
+    data_dir: Path = Path(args.data_dir)
+    out_dir: Path = Path(args.out_dir) if args.out_dir else data_dir / "plots"
     ensure_dir(out_dir)
 
     # load cvs
@@ -134,6 +262,7 @@ def main():
             plot_line(sub, "month_plus", "dpd90_cum_pct", f"Vintage curve – cohort {coh}", out_dir / f"vintage_curve_{coh}.png")
 
     print(f"All plots saved to: {out_dir}")
+
 
 if __name__ == "__main__":
     main()
